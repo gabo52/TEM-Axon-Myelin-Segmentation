@@ -10,8 +10,6 @@ def start(trainer):
                         f"-{trainer.num_epochs}ep-fold{trainer.fold}",
                    group=os.environ.get("TANDA", "nnunet"),
                    dir=os.environ.get("WANDB_DIR", "/tmp"))
-        wandb.define_metric("epoch")
-        wandb.define_metric("*", step_metric="epoch")
         return wandb
     except Exception:
         return None
@@ -26,7 +24,8 @@ def epoch(wandb_mod, trainer):
         wandb_mod.log({"epoch": trainer.current_epoch + 1,
                        "train_loss": get("train_losses"), "val_loss": get("val_losses"),
                        "lr": get("lrs"),
-                       **{f"dice_{n}": v for n, v in zip(names, get("dice_per_class_or_region"))}})
+                       **{f"dice_{n}": v for n, v in zip(names, get("dice_per_class_or_region"))}},
+                      step=trainer.current_epoch + 1)
     except Exception:
         pass
 
