@@ -1,0 +1,46 @@
+# ---- secrets / credentials (never commit) ----
+cluster/env.sh
+cluster/*.key
+.netrc
+*.pem
+
+# ---- challenge data (not redistributable) ----
+data/
+nnunet_share/
+*.tif
+*.docx
+
+# ---- our internal tooling (not part of the public API) ----
+analysis/auto_eval.py
+analysis/predict_sem_from_ckpt.py
+out_auto/
+
+# ---- infra / not part of the deliverable ----
+cluster/
+otros/__pycache__/
+
+# ---- heavy artefacts ----
+cluster_packages_seg/
+_borrar/
+salida/
+out_auto/
+archive/
+*.pth
+*.pt
+*.b2nd
+*.npz
+*.npy
+*.pkl
+
+# ---- python / notebook noise ----
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+
+# ---- editors / os ----
+.vscode/
+.idea/
+.DS_Store
