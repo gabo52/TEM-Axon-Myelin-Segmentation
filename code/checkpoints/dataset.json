@@ -1,0 +1,13 @@
+{
+  "channel_names": {
+    "0": "TEM"
+  },
+  "labels": {
+    "background": 0,
+    "axon": 1,
+    "myelin": 2,
+    "ignore": 3
+  },
+  "numTraining": 266,
+  "file_ending": ".tif"
+}

@@ -2,11 +2,10 @@
 
     L = CE+Dice + w_g·|g_pred-g_true| + w_e·CE(band) + w_a·BCE(accept)
 
-One forward pass returns the segmentation *and* the per-fiber keep/discard
-score: no external critic, no post-hoc threshold search (see predict.py).
+One forward pass returns the segmentation and the per-fiber keep/discard score.
 
 Train: nnUNetv2_train <ID> 2d <FOLD> -tr nnUNetTrainerAccept
-Env:   EPOCHS=250  ACCEPT_W=0.1  ACCEPT_EVERY=2  AMP=1
+Env:   EPOCHS=150  ACCEPT_W=0.1  ACCEPT_EVERY=2  AMP=1
 """
 import os
 
@@ -26,13 +25,25 @@ except ImportError:
     from step import DTYPE, SafeStep
     import tracking
 
+def materialize(net, n_in, hw):
+    feat = {}
+    h = net.decoder.stages[-1].register_forward_hook(lambda m, i, o: feat.__setitem__("x", o))
+    with torch.no_grad():
+        out = net(torch.zeros(2, n_in, hw[0], hw[1]))
+    h.remove()
+    x = feat["x"]
+    x = x[0] if isinstance(x, (list, tuple)) else x
+    seg = out[0] if isinstance(out, (list, tuple)) else out
+    net.accept_head(torch.cat([x, seg.float().softmax(1)[:, 1:3]], dim=1))
+
 class nnUNetTrainerAccept(SafeStep, nnUNetTrainer):
+    accept_target = None        
 
     def __init__(self, plans, configuration, fold, dataset_json, device=torch.device("cuda")):
         super().__init__(plans, configuration, fold, dataset_json, device)
         self.num_epochs = int(os.environ.get("EPOCHS", 250))
         self.use_amp = os.environ.get("AMP", "1").lower() not in ("0", "false", "no")
-        if not self.use_amp or DTYPE == torch.bfloat16:   # bf16 needs no scaler
+        if not self.use_amp or DTYPE == torch.bfloat16:  
             self.grad_scaler = None
         self._wb = None
 
@@ -44,6 +55,8 @@ class nnUNetTrainerAccept(SafeStep, nnUNetTrainer):
         net = super().build_network_architecture(plans_manager, configuration_manager, num_input_channels,
                                                  num_output_channels, enable_deep_supervision)
         net.accept_head = AcceptHead()
+        materialize(net, num_input_channels,
+                    tuple(max(p // 2, 64) for p in configuration_manager.patch_size))
         return net
 
     def _build_loss(self):
@@ -64,7 +77,8 @@ class nnUNetTrainerAccept(SafeStep, nnUNetTrainer):
         return AcceptLoss(base, self.network.accept_head, self.features,
                           float(os.environ.get("ACCEPT_W", 0.1)),
                           int(os.environ.get("ACCEPT_EVERY", 2)),
-                          min_axon=int(MIN_AXON * res * res), pad=max(2, int(RING_PAD * res)))
+                          min_axon=int(MIN_AXON * res * res), pad=max(2, int(RING_PAD * res)),
+                          target=self.accept_target)
 
     def on_train_start(self):
         super().on_train_start()

@@ -10,11 +10,13 @@ except ImportError:
 
 class AcceptLoss(nn.Module):
 
-    def __init__(self, base, head, features, weight, every, min_axon=MIN_AXON, pad=RING_PAD):
+    def __init__(self, base, head, features, weight, every, min_axon=MIN_AXON, pad=RING_PAD,
+                 target=None):
         super().__init__()
         self.base, self.head, self.features = base, head, features
         self.weight, self.every = weight, every
         self.min_axon, self.pad, self.steps = min_axon, pad, 0
+        self.target = target or accept_map
 
     def forward(self, out, target):
         total = self.base(out, target)
@@ -30,7 +32,7 @@ class AcceptLoss(nn.Module):
         return total if add is None or not torch.isfinite(add) else total + add
 
     def _bce(self, feat, b, pred, sem):
-        y, w = accept_map(pred[b], pred[b], sem[b], self.min_axon, self.pad)
+        y, w = self.target(pred[b], pred[b], sem[b], self.min_axon, self.pad)
         if y is None or w.sum() == 0:
             return None
         pair = torch.from_numpy(np.stack([y * w, w])).to(feat.device)[None]

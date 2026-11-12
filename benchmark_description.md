@@ -88,6 +88,38 @@ A fiber's score is the mean of this map over its axon pixels. The head is part
 of the trained network, so **a single forward pass returns both the
 segmentation and the rejection score**.
 
+### 3.3 GPEM — geometric prior fused into the encoder
+
+The visual appearance of a TEM section is ambiguous: large vessels and somas
+look like oversized axons. The **geometry** is not: a real fiber is a bright
+core (axoplasm) inside a thin dark ring (myelin), and that ring is surrounded by
+normal tissue. A false positive is a dark blob whose "ring" is weak and which
+stays dark **outside** the ring.
+
+We therefore measure, on the **image** and with no learned parameters:
+
+```
+core  = mean over the disc 0.6r          ring = mean over the annulus 0.9r–1.4r
+sur   = mean over the annulus 1.6r–2.2r
+maps  = { img − box(3R_max),  core − ring,  sur − ring }   for r in {28, 48, 80}
+```
+
+All means are box means computed with an **integral image**, so the cost is O(1)
+per pixel regardless of the radius (with `avg_pool2d` a 80 px radius would take
+minutes per patch). Seven channels, ≈90 ms per 1024×1536 patch.
+
+The maps are fused into the last three encoder stages with a **learned gated
+residual**:
+
+```
+g' = proj(g)                         1×1 projection to the stage width
+a  = sigmoid(gate([h, g']))          per-pixel gate
+h  = h + a · g'                      fused feature
+```
+
+`proj` is initialised to **zero**, so at step 0 the network is *identical* to the
+benchmark without the prior, and it learns to use the geometry only if it helps.
+
 ## 4. Training objective
 
 ```
@@ -160,22 +192,21 @@ the network's, the two thresholds are fixed and calibrated on validation folds.
 
 ## 6. Experimental results (fold 0, validated on the cluster)
 
-HD95 in nm, global per compartment, averaged over axon and myelin.
+54 held-out cases (fold 0 = 212 train / 54 validation), 150 epochs, HD95 in nm
+pooled over boundary pixels. The **border gate** removes fibers cut by the image
+edge: their diameter and g-ratio are not measurable.
 
-| model | HD95 raw | + post-process | Dice |
+| model | HD95 raw | HD95 + border gate | Dice |
 |---|---|---|---|
-| nnU-Net + g-ratio (baseline) | 750.0 | — | 0.8623 |
-| + AcceptHead, rule targets (60 ep) | 721.4 | **565.7** | **0.8903** |
-| − border rule only | — | 574.6 | 0.8883 |
-| accept-score rule only | — | 655.8 | 0.8798 |
+| nnU-Net baseline (20 ep) | 750.0 | — | 0.8623 |
+| AcceptHead, rule targets | 759.0 | 593.0 | 0.8788 |
+| AcceptHead, oracle targets | 751.9 | 594.0 | 0.8785 |
+| **GPEM** | **744.7** | **572.5** | **0.8833** |
+| GPEM + learned rejection (τ=0.2) | — | **566.5** | **0.8851** |
 
-Rejection quality (fold 0): **AUC 0.876** for kept-vs-discarded fibers, mean
-score 0.887 (kept) vs 0.454 (discarded) — matching an *external* appearance
-critic (AUC 0.864) while needing no second model.
-
-Reference points: a perfect false-positive removal would give ≈195 nm; boundary
-error on correctly detected fibers is 42.9 nm; matched (per fiber) HD95 is
-31.8 nm.
+Reference points: removing every false positive would give 234.9 nm. The trained
+rejection head activates on ≈12 % of fibers at τ=0.2 (the score map is compared
+per fiber).
 
 ### 6.1 What was tested and rejected (all measured, same split)
 
@@ -187,9 +218,16 @@ error on correctly detected fibers is 42.9 nm; matched (per fiber) HD95 is
 | discard as a 4th class | — | artifact/unlabeled are not separable classes |
 | committee (ring judge + border judge) | AUC 0.825 | double head interferes; border judge inert |
 | ResEncM backbone (residual encoder) | 838.9 nm | smaller patch (448×576) loses the fiber context |
+| fiber-level ranking loss | AUC 0.797 | optimises the order, not the operating point |
+| learned arbiter over ring descriptors | AUC 0.922 / 598 nm | better AUC, no HD95 gain |
+| GNN over the fiber graph | AUC 0.904 / 649 nm | trained on patch graphs, applied to whole images |
+| uncertain head (mean + variance) | AUC 0.842 | no gain |
+| post-hoc filters on image features | 590–870 nm | never beat the plain border gate (580 nm) |
 
 The pattern is consistent: **context and a single learned rejection head help;
-extra heads, extra backbones and extra gates do not.**
+extra heads, extra backbones and extra gates do not.** A high AUC on fiber
+classification is not a guide here — the delivery metric depends on the
+operating point, not on the global ranking.
 
 ## 7. Training configuration
 

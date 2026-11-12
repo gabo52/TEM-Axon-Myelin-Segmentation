@@ -13,6 +13,10 @@ nnunet_share/
 # ---- our internal tooling (not part of the public API) ----
 analysis/auto_eval.py
 analysis/predict_sem_from_ckpt.py
+analysis/score_run.py
+analysis/auc_all.py
+analysis/auc_arb.py
+analysis/auc_final.py
 out_auto/
 
 # ---- infra / not part of the deliverable ----
