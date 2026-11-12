@@ -12,9 +12,9 @@ Dataset 505 si no se indica. HD95 global en nm; fold 0 en los runs con validaci�
 | 6 | Stardist alternativo | 778 nm. Peor. |
 | 7 | Cierre de anillo (RingClosure) | 885.7 nm. Peor. |
 | 8 | Radial + aceptación (NestedAccept) | 755.6 nm. Sumar la aceptación no mejora. |
-| 9 | Aceptación con target IoU, 60 ep | ⚠️ AUC 0.861 **INVÁLIDO** (cabeza aleatoria, ver abajo). |
+| 9 | Aceptación con target IoU, 60 ep | AUC 0.861 **INVÁLIDO** (cabeza aleatoria, ver abajo). |
 | 10 | Aceptación con target regla (anillo roto), 60 ep | 721.4 raw / 574.6 borde. El AUC 0.876 era **ruido**; el resultado del borde sí es válido. |
-| 11 | Comité: juez de anillo + juez de borde | ⚠️ Comparación **INVÁLIDA** (comparaba cabezas aleatorias). El juez de borde tampoco descartaba nada. |
+| 11 | Comité: juez de anillo + juez de borde | Comparación **INVÁLIDA** (comparaba cabezas aleatorias). El juez de borde tampoco descartaba nada. |
 | 12 | Crítico adversarial | No aprendió. Descartado. |
 | 13 | Descartar como cuarta clase | Falla: fondo y artefacto son idénticos. |
 | 14 | Consenso de 3 modelos + puertas | 520 nm, Dice 0.891. Tres modelos, no es entregable. |
@@ -32,7 +32,7 @@ Dataset 505 si no se indica. HD95 global en nm; fold 0 en los runs con validaci�
 - El **AUC no es la métrica**: las ideas 2 y 3 suben el AUC y no bajan el HD95.
 - El cuello de botella es la **etiqueta**, no la capacidad: 156 fibras con anillo roto explican 270 nm.
 
-## ⚠️ Corrección importante (bug de la cabeza perezosa)
+## Corrección importante (bug de la cabeza perezosa)
 
 `AcceptHead` creaba sus pesos **en el primer forward**, y nnU-Net construye el
 optimizador **justo antes**. Resultado: **la cabeza nunca estuvo en el
