@@ -9,13 +9,14 @@ def starts(size, tile, step):
         out.append(size - tile)
     return out
 
-def forward(net, img, tile_hw, feat, n_in=1):
+def forward(net, img, tile_hw, feat, n_in=1, return_votes=False):
     """Run the network over the image.
 
     Returns
     -------
     sem   : uint8 [H, W] class map (argmax of accumulated votes)
     score : float32 [H/4, W/4] mean accept score
+    votes : int16 [H, W, 3] per-class vote counts (only if return_votes)
     """
     h, w = img.shape
     th, tw = tile_hw
@@ -42,4 +43,7 @@ def forward(net, img, tile_hw, feat, n_in=1):
             score[ay:ay + ah, ax:ax + aw] += sc[0, 0].cpu().numpy()
             count[ay:ay + ah, ax:ax + aw] += 1
 
-    return votes.argmax(-1).astype(np.uint8), score / np.maximum(count, 1)
+    score = score / np.maximum(count, 1)
+    if return_votes:
+        return votes.argmax(-1).astype(np.uint8), score, votes
+    return votes.argmax(-1).astype(np.uint8), score
