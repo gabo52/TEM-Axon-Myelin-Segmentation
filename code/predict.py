@@ -1,77 +1,79 @@
+"""Inferencia: segmentacion + rechazo -> TIFF uint16 con las instancias.
 
+    # un solo modelo
+    python predict.py --checkpoint C.pth --images DIR --plans P.json \
+        --dataset-json D.json --out predictions/ [--tau 0]
+
+    # ensemble (los 5 folds de la CV se promedian)
+    python predict.py --ensemble f0.pth f1.pth f2.pth f3.pth f4.pth \
+        --images DIR --plans P.json --dataset-json D.json --out predictions/
+
+Salida: uint16 a la resolucion nativa, 0 fondo / 2k axon / 2k+1 mielina.
+"""
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
 import torch
 import tifffile
-from skimage.transform import resize
 
 CODE = Path(__file__).resolve().parent
 sys.path.insert(0, str(CODE))
 sys.path.insert(0, str(CODE.parent))
 
-from benchmark import nnUNetTrainerAccept   
-from tiling import forward                   
-from otros.accept_filter import drop        
-from otros.instances import to_instances      
+# nnU-Net lee estas variables al importarse; se apuntan a un temporal.
+_tmp = tempfile.mkdtemp(prefix="nnunet_predict_")
+for _v in ("nnUNet_results", "nnUNet_raw", "nnUNet_preprocessed"):
+    os.environ.setdefault(_v, _tmp)
 
-def load(ckpt, plans_path, dataset_json, device):
-    plans = dict(json.load(open(plans_path)), continue_training=False)
-    trainer = nnUNetTrainerAccept(plans, "2d", 0, dataset_json, device=device)
-    trainer.initialize()
-    net = trainer.network.eval()
-    th, tw = [int(v) for v in trainer.configuration_manager.patch_size]
+from infer import load_model, predict      # noqa: E402
 
-    feat = {}
-    net.decoder.stages[-1].register_forward_hook(lambda m, i, o: feat.__setitem__("x", o))
-    with torch.no_grad():   
-        out = net(torch.zeros(2, 1, th, tw).to(next(net.parameters()).device))
-        logits = out[0] if isinstance(out, (list, tuple)) else out
-        net.accept_head(torch.cat([feat["x"], logits.float().softmax(1)[:, 1:3]], dim=1))
-
-    net.load_state_dict(torch.load(ckpt, map_location=device)["network_weights"])
-    return net.eval(), (th, tw), feat, plans
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--checkpoint", help="un solo modelo")
+    ap.add_argument("--ensemble", nargs="+", help="varios checkpoints; se promedian")
     ap.add_argument("--images", required=True)
     ap.add_argument("--plans", required=True)
     ap.add_argument("--dataset-json", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--tau", type=float, default=0.2)
-    args = ap.parse_args()
+    ap.add_argument("--tau", type=float, default=0.0,
+                    help="umbral del rechazo; 0 = solo el gate de borde (lo medido)")
+    ap.add_argument("--no-close", action="store_true",
+                    help="no cerrar los anillos abiertos (pipeline antiguo, medido peor)")
+    ap.add_argument("--save-sem", action="store_true",
+                    help="guardar <out>/sem/<caso>_sem.tif y _score.npy para reevaluar")
+    a = ap.parse_args()
 
-    out = Path(args.out)
+    paths = a.ensemble or ([a.checkpoint] if a.checkpoint else [])
+    if not paths:
+        ap.error("hace falta --checkpoint o --ensemble")
+    out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net, tile_hw, feat, plans = load(args.checkpoint, args.plans,
-                                     json.load(open(args.dataset_json)), device)
+    dataset_json, plans = json.load(open(a.dataset_json)), json.load(open(a.plans))
+    models = [load_model(p, a.plans, dataset_json, device) for p in paths]
+    print(f"{len(models)} modelo(s) cargado(s)")
 
-    stats = plans["foreground_intensity_properties_per_channel"]["0"]
-    target_hw = [int(v) for v in plans["configurations"]["2d"]["median_image_size_in_voxels"]]
-    n_in = getattr(net, "num_input_channels", 1)
+    sem_dir = out / "sem"
+    if a.save_sem:
+        sem_dir.mkdir(parents=True, exist_ok=True)
 
-    for f in sorted(Path(args.images).glob("*.tif")):
-        img = tifffile.imread(f).astype(np.float32)
-        img = (resize(img, tuple(target_hw), order=1, preserve_range=True) - stats["mean"]) / stats["std"]
+    files = sorted(Path(a.images).glob("*.tif"))
+    for i, f in enumerate(files, 1):
+        inst, sem, score = predict(f, models, plans, a.tau, device, close=not a.no_close)
+        tifffile.imwrite(out / f.name, inst.astype("uint16"))
+        if a.save_sem:
+            tifffile.imwrite(sem_dir / f"{f.stem}_sem.tif", sem)
+            np.save(sem_dir / f"{f.stem}_score.npy", score.astype(np.float32))
+        print(f"  [{i}/{len(files)}] {f.name}", flush=True)
+    print(f"escritas {len(list(out.glob('*.tif')))} predicciones en {out}")
 
-        sem, score = forward(net, img, tile_hw, feat, n_in)
-        if sem.shape[0] < target_hw[0]:
-            sem = sem.repeat(2, 0).repeat(2, 1)
-        inst = to_instances(sem)
-
-        if score.shape != inst.shape:
-            score = torch.nn.functional.interpolate(
-                torch.from_numpy(score)[None, None], size=inst.shape,
-                mode="bilinear", align_corners=False)[0, 0].numpy()
-
-        tifffile.imwrite(out / f.name, drop(inst, score, args.tau).astype(np.uint16))
-
-    print(f"wrote {len(list(out.glob('*.tif')))} predictions to {out}")
 
 if __name__ == "__main__":
     main()

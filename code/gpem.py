@@ -37,7 +37,7 @@ def _hook(net, n):
     return hook
 
 
-def install(net, hw):
+def install(net, hw, maps_fn=maps):
     stages = list(net.encoder.stages)
     idx = list(range(len(stages)))[-LAST_STAGES:]
     info = {}
@@ -48,24 +48,29 @@ def install(net, hw):
     for h in hs:
         h.remove()
 
-    net.geo_fusion = nn.ModuleList([GeoFusion(info[i]) for i in idx])
+    n_maps = maps_fn(torch.zeros(1, 1, 64, 64)).shape[1]   # canales reales
+    net.geo_fusion = nn.ModuleList([GeoFusion(info[i], n_maps) for i in idx])
     for n, i in enumerate(idx):
         stages[i].register_forward_hook(_hook(net, n))
 
     orig = net.forward
 
     def forward(x, *a, **k):
-        net._geom = maps(x[:, :1]).to(x.dtype)
+        net._geom = maps_fn(x[:, :1]).to(x.dtype)
         return orig(x, *a, **k)
 
     net.forward = forward
 
 
 class nnUNetTrainerGPEM(nnUNetTrainerAccept):
+    """El benchmark + el prior geometrico fusionado dentro del encoder."""
+
+    geom_maps = staticmethod(maps)          # que mapas de entrada usar
 
     def build_network_architecture(self, plans_manager, configuration_manager, num_input_channels,
                                    num_output_channels, enable_deep_supervision):
         net = super().build_network_architecture(plans_manager, configuration_manager, num_input_channels,
                                                  num_output_channels, enable_deep_supervision)
-        install(net, tuple(max(p // 2, 64) for p in configuration_manager.patch_size))
+        install(net, tuple(max(p // 2, 64) for p in configuration_manager.patch_size),
+                self.geom_maps)
         return net
