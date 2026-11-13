@@ -17,6 +17,8 @@ Two trainers, same data and schedule, so any team member can compare them:
 | `nnU-Net_baseline/README.md` | baseline result and how it compares |
 | `checkpoints/` | trained weights (not in git) |
 | `predictions/` | output folder for the test set |
+| `train.py` | single training entry point: `--model nnunet` or `--model cellpose` |
+| `cellpose/` | **Cellpose-SAM pipeline** (second method) — see [`cellpose/README.md`](cellpose/README.md) |
 
 Every file stays under ~90 lines on purpose: this is the reference the rest of
 the team will extend.
@@ -68,3 +70,37 @@ fibers touching the image border are dropped as well. Output: uint16 TIFFs.
 Weights are not stored in git (~470 MB each). Place
 `checkpoints/checkpoint_final.pth` before predicting; `predict.py` reads the
 nnU-Net checkpoint dict (`["network_weights"]`).
+
+## Single training entry point (`train.py`)
+
+`train.py` selects the pipeline with `--model` and forwards every other
+argument to it (run from the repository root):
+
+```bash
+# nnU-Net: copies the trainers into the nnU-Net package and runs nnUNetv2_train
+python code/train.py --model nnunet --dataset <DATASET_ID> --fold 0 --trainer accept --wandb
+python code/train.py --model nnunet --dataset <DATASET_ID> --fold all --trainer accept
+
+# Cellpose-SAM: forwards to code/cellpose/train.py
+python code/train.py --model cellpose --target both --wandb
+python code/train.py --model cellpose --help            # all Cellpose options
+```
+
+The nnU-Net branch needs `nnUNet_raw`, `nnUNet_preprocessed` and
+`nnUNet_results` to be set (see *Install*). Without `--wandb` nothing is sent to
+Weights & Biases (`WANDB_MODE=disabled`).
+
+## Cellpose-SAM pipeline
+
+Two fine-tuned Cellpose-SAM models (whole fiber and axon); myelin = fiber −
+axon, so every axon `2k` is paired with its myelin `2k+1` by construction. The
+full execution pipeline (5-fold cross-validation with early stopping, final
+model on all 266 images, out-of-fold evaluation, test prediction) is documented
+step by step in [`cellpose/README.md`](cellpose/README.md#execution-pipeline-step-by-step).
+
+```bash
+pip install -r code/cellpose/requirements.txt
+setsid nohup python code/cellpose/kfold.py --wandb > code/checkpoints/kfold.log 2>&1 < /dev/null &
+python code/cellpose/predict.py --images /path/to/test --out predictions \
+       --ckpt code/checkpoints/cellpose_all
+```

@@ -121,12 +121,15 @@ def main():
     print(f"\npredicciones y metrics.csv en {out}")
 
     if run is not None:
-        log = {"per_image": wandb_log.table(rows)}
-        if examples:
-            log["examples"] = examples
-        run.log(log)
-        run.summary.update(summary)
-        run.finish()
+        try:  # metrics.csv ya está escrito: un fallo de W&B no invalida la evaluación
+            log = {"per_image": wandb_log.table(rows)}
+            if examples:
+                log["examples"] = examples
+            run.log(log)
+            run.summary.update(summary)
+            run.finish()
+        except Exception as e:
+            print(f"[wandb] error al subir la evaluación ({type(e).__name__}: {e})")
 
 
 if __name__ == "__main__":

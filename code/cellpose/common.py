@@ -98,6 +98,18 @@ def make_split(names, val_frac, seed=0):
             [names[i] for i in sorted(idx[:n_val])])
 
 
+def make_kfold(names, k=5, seed=0):
+    """k folds deterministas: lista de (train, val), cada imagen en exactamente un val."""
+    idx = np.random.default_rng(seed).permutation(len(names))
+    folds = np.array_split(idx, k)
+    out = []
+    for i in range(k):
+        val = set(folds[i].tolist())
+        out.append(([names[j] for j in range(len(names)) if j not in val],
+                    [names[j] for j in sorted(val)]))
+    return out
+
+
 def save_split(path, train, val, **meta):
     Path(path).write_text(json.dumps({"train": train, "val": val, **meta}, indent=2))
 
@@ -134,9 +146,11 @@ def resolve_scale(ckpt_dir, scale=None):
 
 
 def load_models(fiber_model, axon_model, gpu=True):
+    """Modelos en fp32: misma precisión con la que se entrenaron y se eligió el checkpoint
+    (Cellpose carga en bf16 por defecto; se midió hasta ~0.01 de Dice de diferencia)."""
     from cellpose import models
-    return (models.CellposeModel(gpu=gpu, pretrained_model=str(fiber_model)),
-            models.CellposeModel(gpu=gpu, pretrained_model=str(axon_model)))
+    return (models.CellposeModel(gpu=gpu, pretrained_model=str(fiber_model), use_bfloat16=False),
+            models.CellposeModel(gpu=gpu, pretrained_model=str(axon_model), use_bfloat16=False))
 
 
 # ---------------------------------------------------------------- inferencia

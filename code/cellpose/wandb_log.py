@@ -74,7 +74,11 @@ class _CellposeLogHandler(logging.Handler):
         data = {"epoch": int(epoch), "train_loss": float(train_loss), "lr": float(lr)}
         if float(val_loss) > 0:  # Cellpose escribe 0.0000 cuando no hay validación (--all)
             data["val_loss"] = float(val_loss)
-        self.run.log(data, step=int(epoch))
+        # emit() se ejecuta DENTRO de train_seg: un fallo de W&B no debe tumbar el entrenamiento
+        try:
+            self.run.log(data, step=int(epoch))
+        except Exception as e:
+            print(f"[wandb] no se pudo registrar la época {epoch} ({type(e).__name__}: {e})")
 
 
 class TrainRun:
@@ -85,18 +89,21 @@ class TrainRun:
         self.handler = _CellposeLogHandler(run)
         logging.getLogger("cellpose.train").addHandler(self.handler)
 
-    def finish(self, train_loss, val_loss, model_path):
+    def finish(self, train_loss, val_loss, model_path, summary=None):
+        """train_loss/val_loss: curvas completas de train_seg (vacías si hubo early stopping)."""
         import wandb
         logging.getLogger("cellpose.train").removeHandler(self.handler)
         try:
-            # curva completa época -> pérdida. val_loss = 0 donde Cellpose no la calcula.
-            rows = [[e, float(t), float(v) if v else None]
-                    for e, (t, v) in enumerate(zip(train_loss, val_loss))]
-            curve = wandb.Table(columns=["epoch", "train_loss", "val_loss"], data=rows)
-            self.run.log({"full_curve/train_loss": wandb.plot.line(
-                curve, "epoch", "train_loss", title="train loss (todas las épocas)")})
+            if len(train_loss):
+                # curva completa época -> pérdida. val_loss = 0 donde Cellpose no la calcula.
+                rows = [[e, float(t), float(v) if v else None]
+                        for e, (t, v) in enumerate(zip(train_loss, val_loss))]
+                curve = wandb.Table(columns=["epoch", "train_loss", "val_loss"], data=rows)
+                self.run.log({"full_curve/train_loss": wandb.plot.line(
+                    curve, "epoch", "train_loss", title="train loss (todas las épocas)")})
+                self.run.summary["final_train_loss"] = float(train_loss[-1])
             self.run.summary["model_path"] = str(model_path)
-            self.run.summary["final_train_loss"] = float(train_loss[-1])
+            self.run.summary.update(summary or {})
             self.run.finish()
         except Exception as e:  # un fallo de W&B no debe parar el entrenamiento del otro modelo
             print(f"[wandb] error al cerrar el run ({type(e).__name__}: {e})")
