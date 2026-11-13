@@ -1,0 +1,11 @@
+# Pipeline Cellpose-SAM (code/cellpose/). Versiones con las que se entrenó y validó.
+# Python 3.10, CUDA 13 (RTX 3080 12 GB)
+cellpose==4.2.1.1
+torch==2.14.1
+numpy==2.2.2
+scipy==1.15.3
+scikit-image==0.25.2
+tifffile==2025.5.10
+opencv-python-headless==5.0.0.93
+# opcional: registro de experimentos (--wandb)
+wandb==0.31.0

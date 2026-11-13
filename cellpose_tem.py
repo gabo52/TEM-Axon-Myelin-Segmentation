@@ -22,6 +22,8 @@ Uso (RTX 3080 12 GB):
                                  --axon-model models/models/cpsam_tem_axon --scale 0.25 --out preds
 """
 import argparse
+import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -337,6 +339,11 @@ def cmd_eval(a):
     from cellpose import models
     from skimage.io import imsave
 
+    # métricas con la fórmula oficial del challenge (comparables con nnU-Net)
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "analysis"))
+    from metrics import aggregate as official_aggregate
+    from metrics import evaluate as official_evaluate
+
     files = val_files(a.x, a.y, a.val_frac)
     print(f"evaluando {len(files)} imágenes de validación")
     m_fiber = models.CellposeModel(gpu=True, pretrained_model=a.fiber_model)
@@ -344,8 +351,9 @@ def cmd_eval(a):
     has_axon = m_axon is not None
     out_dir = Path(a.out)
     out_dir.mkdir(parents=True, exist_ok=True)
+    run = wandb_start(a, len(files)) if a.wandb else None
 
-    rows = []
+    rows, official, examples = [], [], []
     for p in files:
         img = tifffile.imread(p)
         if img.ndim == 3 and img.shape[-1] in (3, 4):
@@ -360,9 +368,14 @@ def cmd_eval(a):
             msg += (f" DiceAx={r['dice_axon']:.3f} DiceMy={r['dice_myelin']:.3f}"
                     f" HD95ax={r['hd95_axon_nm']:.0f}nm HD95my={r['hd95_myelin_nm']:.0f}nm"
                     f" Δg={r.get('delta_g_mae', np.nan):.3f}")
+            official.append(official_evaluate(pred, y))
+            if run is not None and len(examples) < a.wandb_images:
+                caption = f"{p.stem}  DiceAx={r['dice_axon']:.3f}  DiceMy={r['dice_myelin']:.3f}"
+                examples.append(wandb_example(img, y, pred, caption))
         print(msg)
 
-    keys = [k for k in rows[0] if k != "image"]
+    # unión de columnas: delta_g_* solo existe en imágenes con alguna fibra emparejada
+    keys = list(dict.fromkeys(k for r in rows for k in r if k != "image"))
     with open(out_dir / "metrics.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["image"] + keys)
         w.writeheader()
@@ -378,7 +391,71 @@ def cmd_eval(a):
             print(f"{k:>16}: {int(sum(r[k] for r in rows))} (total)")
         else:
             print(f"{k:>16}: {mean[k]:.4f}")
+
+    official_mean = official_aggregate(official) if official else {}
+    if official_mean:
+        print("\n=== MÉTRICAS OFICIALES (analysis/metrics.py, HD95 en nm) ===")
+        for k, v in official_mean.items():
+            print(f"{k:>16}: {v:.4f}")
     print(f"\nCSV y predicciones en: {out_dir}")
+
+    if run is not None:
+        wandb_finish(run, rows, mean, official_mean, examples)
+
+
+# ----------------------------------------------------------------------------
+# W&B para eval (opcional, --wandb). Proyecto: WANDB_PROJECT (def. "tem-challenge")
+# ----------------------------------------------------------------------------
+CLASS_LABELS = {0: "fondo", 1: "axón", 2: "mielina", 3: "artefacto"}
+
+
+def to_classes(lbl):
+    """Instancias (0, 1, 2k, 2k+1) -> clase por píxel, para pintar las máscaras."""
+    cls = np.zeros(lbl.shape, np.uint8)
+    cls[(lbl >= 2) & (lbl % 2 == 0)] = 1   # axón
+    cls[(lbl >= 3) & (lbl % 2 == 1)] = 2   # mielina
+    cls[lbl == 1] = 3                      # artefacto (solo en GT)
+    return cls
+
+
+def wandb_start(a, n_images):
+    """Abre un run de tipo 'eval'. Si wandb falla (no instalado / sin login) devuelve None."""
+    try:
+        import wandb
+        return wandb.init(project=os.environ.get("WANDB_PROJECT", "tem-challenge"),
+                          entity=os.environ.get("WANDB_ENTITY"),
+                          name=a.wandb_name or f"eval-{Path(a.out).name}",
+                          group=a.wandb_group, job_type="eval",
+                          config={"fiber_model": a.fiber_model, "axon_model": a.axon_model,
+                                  "scale": a.scale, "val_frac": a.val_frac,
+                                  "n_images": n_images})
+    except Exception as e:
+        print(f"[wandb] desactivado ({type(e).__name__}: {e})")
+        return None
+
+
+def wandb_example(img, y, pred, caption, step=4):
+    """Imagen reducida 1/step con GT y predicción como máscaras (se activan en la UI)."""
+    import wandb
+    small = (slice(None, None, step), slice(None, None, step))
+    return wandb.Image(img[small].astype(np.uint8), caption=caption, masks={
+        "prediction": {"mask_data": to_classes(pred[small]), "class_labels": CLASS_LABELS},
+        "ground_truth": {"mask_data": to_classes(y[small]), "class_labels": CLASS_LABELS},
+    })
+
+
+def wandb_finish(run, rows, mean, official_mean, examples):
+    """Tabla por imagen + ejemplos + medias (resumen del run)."""
+    import wandb
+    cols = list(dict.fromkeys(k for r in rows for k in r))
+    table = wandb.Table(columns=cols, data=[[r.get(k) for k in cols] for r in rows])
+    log = {"per_image": table}
+    if examples:
+        log["examples"] = examples
+    run.log(log)
+    run.summary.update({f"mean/{k}": v for k, v in mean.items() if k != "image"})
+    run.summary.update({f"official/{k}": v for k, v in official_mean.items()})
+    run.finish()
 
 
 def main():
@@ -419,6 +496,10 @@ def main():
     e.add_argument("--val-frac", type=float, default=0.15, help="el MISMO que en train")
     e.add_argument("--batch-size", type=int, default=8)
     e.add_argument("--out", default="eval_val")
+    e.add_argument("--wandb", action="store_true", help="registrar el eval en W&B")
+    e.add_argument("--wandb-name", default=None, help="nombre del run (def. eval-<out>)")
+    e.add_argument("--wandb-group", default=None, help="p. ej. el mismo grupo que el entrenamiento")
+    e.add_argument("--wandb-images", type=int, default=4, help="nº de imágenes de ejemplo a subir")
 
     a = ap.parse_args()
     {"stats": cmd_stats, "train": cmd_train, "predict": cmd_predict, "eval": cmd_eval}[a.cmd](a)

@@ -49,6 +49,9 @@ venv/
 .DS_Store
 
 # ---- pesos de Cellpose (archivos sin extensión, ~1.2 GB cada uno) ----
-code/checkpoints/cellpose/
+code/checkpoints/cellpose*/models/
 models/
-wandb
+wandb/
+
+# ---- salidas locales de Cellpose ----
+eval_cellpose/

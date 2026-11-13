@@ -16,7 +16,7 @@ Uso (RTX 3080 12 GB):
     python code/cellpose/train.py --target both --wandb
     python code/cellpose/train.py --target both --all       # modelo final: todas las imágenes
 
-Salida (en --out):
+Salida (en --out; por defecto code/checkpoints/cellpose, o .../cellpose_all con --all):
     models/cpsam_tem_fiber    pesos del modelo de fibra
     models/cpsam_tem_axon     pesos del modelo de axón
     split.json                imágenes de train / val
@@ -34,7 +34,7 @@ import tifffile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import wandb_log  # noqa: E402
-from common import (DEFAULT_IMAGES, DEFAULT_LABELS, ROOT, TARGETS, list_pairs,  # noqa: E402
+from common import (DEFAULT_CKPT, DEFAULT_IMAGES, DEFAULT_LABELS, TARGETS, list_pairs,  # noqa: E402
                     load_split, make_split, read_image, rescale_img, rescale_lbl, save_split)
 
 MODEL_NAME = "cpsam_tem_{target}"  # mismos nombres que los modelos ya entrenados
@@ -109,8 +109,8 @@ def train_one(target, args, pairs, train_names, val_names, out):
     }
     run = None
     if args.wandb:
-        run = wandb_log.start(MODEL_NAME.format(target=target), args.wandb_group,
-                              config={**info, "val_images": val_names})
+        run = wandb_log.start_train(MODEL_NAME.format(target=target), args.wandb_group,
+                                    config={**info, "val_images": val_names})
 
     model_path, train_loss, val_loss = train.train_seg(
         model.net,
@@ -145,7 +145,9 @@ def main():
                     help="qué modelo Cellpose entrenar (both = los dos con el mismo split)")
     ap.add_argument("--images", default=str(DEFAULT_IMAGES), help="carpeta con las TIFF de entrada")
     ap.add_argument("--labels", default=str(DEFAULT_LABELS), help="máscaras uint16 con el mismo nombre")
-    ap.add_argument("--out", default=str(ROOT / "code" / "checkpoints" / "cellpose"))
+    ap.add_argument("--out", default=None,
+                    help="carpeta de salida (def. code/checkpoints/cellpose, "
+                         "o code/checkpoints/cellpose_all con --all)")
     ap.add_argument("--pretrained", default="cpsam", help="pesos base: cpsam | cpsam_v2 | ruta")
     ap.add_argument("--scale", type=float, default=0.25,
                     help="reducción de la imagen; usar el MISMO valor en predict")
@@ -171,7 +173,9 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    out = Path(args.out)
+    # --all va a otra carpeta para no pisar los modelos de validación ni su split.json
+    out = Path(args.out) if args.out else DEFAULT_CKPT.with_name(
+        "cellpose_all" if args.all else "cellpose")
     out.mkdir(parents=True, exist_ok=True)
     pairs = list_pairs(args.images, args.labels)
     names = [img.stem for img, _ in pairs]
