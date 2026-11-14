@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cellpose vs nnU-Net</title>
+<style>
+:root { --bg:#ffffff; --fg:#1d1d1f; --muted:#6b6b70; --card:#f4f4f6; --line:#dcdce0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#141416; --fg:#ececef; --muted:#9a9aa2; --card:#1e1e22; --line:#33333a; } }
+:root[data-theme="dark"] { --bg:#141416; --fg:#ececef; --muted:#9a9aa2; --card:#1e1e22; --line:#33333a; }
+* { box-sizing:border-box; }
+body { margin:0; padding:0 16px 48px; background:var(--bg); color:var(--fg);
+  font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { max-width:1600px; margin:0 auto; padding:24px 0 8px; }
+h1 { font-size:22px; margin:0 0 6px; }
+p { margin:4px 0; color:var(--muted); }
+.legend { display:flex; flex-wrap:wrap; gap:14px; margin:12px 0; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.sw { width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid var(--line); }
+.cols, .row { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+.cols { position:sticky; top:0; z-index:2; background:var(--bg); padding:10px 0;
+  border-bottom:1px solid var(--line); font-weight:600; max-width:1600px; margin:0 auto; }
+section { max-width:1600px; margin:18px auto 0; background:var(--card); border-radius:10px; padding:10px; }
+section h2 { font-size:15px; margin:0 0 8px; display:flex; flex-wrap:wrap; gap:4px 16px; align-items:baseline; }
+section h2 small { font-weight:400; color:var(--muted); }
+.row img { width:100%; height:auto; display:block; border-radius:6px; cursor:zoom-in; }
+table { border-collapse:collapse; margin:10px 0; font-variant-numeric:tabular-nums; }
+td, th { padding:3px 10px; border-bottom:1px solid var(--line); text-align:right; }
+th:first-child, td:first-child { text-align:left; }
+a { color:inherit; }
+@media (max-width:700px) { .cols, .row { grid-template-columns:repeat(2, 1fr); } }
+</style></head><body>
+<header>
+<h1>Test SIPAIM 2026 — Cellpose vs nnU-Net</h1>
+<p>40 imágenes de test. Cellpose: <code>code/checkpoints/cellpose_all</code> (cellprob −1 + multiescala).
+nnU-Net: <code>predictions/</code> de la rama <code>danitza2</code> (GPEM15).</p>
+<p>Concordancia media entre ambos: Dice axón 0.889, Dice mielina 0.841.
+Fibras totales: Cellpose 1641, nnU-Net 2012. Es acuerdo entre modelos, no precisión (el test no tiene ground truth).</p>
+<div class="legend">
+<span><i class="sw" style="background:rgb(46, 155, 255)"></i>axón</span>
+<span><i class="sw" style="background:rgb(255, 176, 0)"></i>mielina</span>
+<span><i class="sw" style="background:#000"></i>borde de instancia</span>
+<span><i class="sw" style="background:rgb(230, 0, 126)"></i>solo Cellpose</span>
+<span><i class="sw" style="background:rgb(60, 210, 90)"></i>solo nnU-Net</span>
+<span><i class="sw" style="background:rgb(255, 255, 255)"></i>clase distinta (axón ↔ mielina)</span>
+</div>
+<details><summary>Imágenes ordenadas por desacuerdo (mayor primero)</summary>
+<table><tr><th>imagen</th><th>% píxeles en desacuerdo</th><th>Dice axón</th><th>Dice mielina</th><th>fibras CP</th><th>fibras nnU</th></tr>
+<tr><td><a href="#sample_0017">sample_0017.tif</a></td><td>26.2</td><td>0.696</td><td>0.708</td><td>40</td><td>53</td></tr>
+<tr><td><a href="#sample_0036">sample_0036.tif</a></td><td>21.7</td><td>0.755</td><td>0.596</td><td>26</td><td>33</td></tr>
+<tr><td><a href="#sample_0014">sample_0014.tif</a></td><td>17.2</td><td>0.779</td><td>0.719</td><td>40</td><td>63</td></tr>
+<tr><td><a href="#sample_0011">sample_0011.tif</a></td><td>16.3</td><td>0.825</td><td>0.754</td><td>45</td><td>57</td></tr>
+<tr><td><a href="#sample_0015">sample_0015.tif</a></td><td>15.5</td><td>0.786</td><td>0.764</td><td>38</td><td>55</td></tr>
+<tr><td><a href="#sample_0006">sample_0006.tif</a></td><td>15.0</td><td>0.761</td><td>0.750</td><td>37</td><td>59</td></tr>
+<tr><td><a href="#sample_0035">sample_0035.tif</a></td><td>13.9</td><td>0.838</td><td>0.801</td><td>53</td><td>58</td></tr>
+<tr><td><a href="#sample_0012">sample_0012.tif</a></td><td>12.7</td><td>0.805</td><td>0.808</td><td>32</td><td>41</td></tr>
+<tr><td><a href="#sample_0013">sample_0013.tif</a></td><td>12.4</td><td>0.737</td><td>0.768</td><td>24</td><td>32</td></tr>
+<tr><td><a href="#sample_0001">sample_0001.tif</a></td><td>11.9</td><td>0.898</td><td>0.829</td><td>55</td><td>62</td></tr>
+<tr><td><a href="#sample_0008">sample_0008.tif</a></td><td>11.0</td><td>0.892</td><td>0.834</td><td>43</td><td>55</td></tr>
+<tr><td><a href="#sample_0021">sample_0021.tif</a></td><td>10.8</td><td>0.897</td><td>0.833</td><td>43</td><td>57</td></tr>
+<tr><td><a href="#sample_0027">sample_0027.tif</a></td><td>9.1</td><td>0.920</td><td>0.851</td><td>39</td><td>50</td></tr>
+<tr><td><a href="#sample_0025">sample_0025.tif</a></td><td>9.1</td><td>0.879</td><td>0.803</td><td>36</td><td>46</td></tr>
+<tr><td><a href="#sample_0026">sample_0026.tif</a></td><td>9.0</td><td>0.804</td><td>0.791</td><td>24</td><td>36</td></tr>
+<tr><td><a href="#sample_0022">sample_0022.tif</a></td><td>9.0</td><td>0.885</td><td>0.855</td><td>48</td><td>64</td></tr>
+<tr><td><a href="#sample_0039">sample_0039.tif</a></td><td>8.4</td><td>0.905</td><td>0.862</td><td>44</td><td>52</td></tr>
+<tr><td><a href="#sample_0028">sample_0028.tif</a></td><td>8.4</td><td>0.898</td><td>0.829</td><td>38</td><td>54</td></tr>
+<tr><td><a href="#sample_0016">sample_0016.tif</a></td><td>7.5</td><td>0.941</td><td>0.859</td><td>55</td><td>64</td></tr>
+<tr><td><a href="#sample_0023">sample_0023.tif</a></td><td>7.0</td><td>0.933</td><td>0.888</td><td>54</td><td>72</td></tr>
+<tr><td><a href="#sample_0005">sample_0005.tif</a></td><td>6.8</td><td>0.951</td><td>0.895</td><td>67</td><td>74</td></tr>
+<tr><td><a href="#sample_0037">sample_0037.tif</a></td><td>6.6</td><td>0.928</td><td>0.886</td><td>55</td><td>68</td></tr>
+<tr><td><a href="#sample_0004">sample_0004.tif</a></td><td>6.5</td><td>0.937</td><td>0.884</td><td>36</td><td>45</td></tr>
+<tr><td><a href="#sample_0029">sample_0029.tif</a></td><td>6.5</td><td>0.925</td><td>0.848</td><td>34</td><td>48</td></tr>
+<tr><td><a href="#sample_0033">sample_0033.tif</a></td><td>6.4</td><td>0.932</td><td>0.895</td><td>58</td><td>59</td></tr>
+<tr><td><a href="#sample_0007">sample_0007.tif</a></td><td>6.3</td><td>0.934</td><td>0.885</td><td>44</td><td>56</td></tr>
+<tr><td><a href="#sample_0002">sample_0002.tif</a></td><td>6.1</td><td>0.912</td><td>0.851</td><td>34</td><td>36</td></tr>
+<tr><td><a href="#sample_0038">sample_0038.tif</a></td><td>6.0</td><td>0.916</td><td>0.889</td><td>33</td><td>35</td></tr>
+<tr><td><a href="#sample_0024">sample_0024.tif</a></td><td>6.0</td><td>0.914</td><td>0.866</td><td>35</td><td>37</td></tr>
+<tr><td><a href="#sample_0019">sample_0019.tif</a></td><td>5.8</td><td>0.934</td><td>0.875</td><td>26</td><td>37</td></tr>
+<tr><td><a href="#sample_0018">sample_0018.tif</a></td><td>5.5</td><td>0.823</td><td>0.785</td><td>18</td><td>24</td></tr>
+<tr><td><a href="#sample_0031">sample_0031.tif</a></td><td>5.2</td><td>0.947</td><td>0.899</td><td>45</td><td>49</td></tr>
+<tr><td><a href="#sample_0003">sample_0003.tif</a></td><td>5.1</td><td>0.951</td><td>0.863</td><td>34</td><td>43</td></tr>
+<tr><td><a href="#sample_0020">sample_0020.tif</a></td><td>5.0</td><td>0.931</td><td>0.892</td><td>32</td><td>33</td></tr>
+<tr><td><a href="#sample_0010">sample_0010.tif</a></td><td>4.4</td><td>0.945</td><td>0.903</td><td>39</td><td>45</td></tr>
+<tr><td><a href="#sample_0009">sample_0009.tif</a></td><td>4.3</td><td>0.965</td><td>0.907</td><td>60</td><td>63</td></tr>
+<tr><td><a href="#sample_0040">sample_0040.tif</a></td><td>4.0</td><td>0.948</td><td>0.911</td><td>43</td><td>47</td></tr>
+<tr><td><a href="#sample_0030">sample_0030.tif</a></td><td>3.0</td><td>0.979</td><td>0.928</td><td>45</td><td>48</td></tr>
+<tr><td><a href="#sample_0032">sample_0032.tif</a></td><td>2.3</td><td>0.981</td><td>0.927</td><td>37</td><td>41</td></tr>
+<tr><td><a href="#sample_0034">sample_0034.tif</a></td><td>2.3</td><td>0.975</td><td>0.933</td><td>52</td><td>61</td></tr></table></details>
+</header>
+<div class="cols"><div>Cellpose</div><div>nnU-Net</div><div>Zona común</div><div>Zona no común</div></div>
+<section id="sample_0001"><h2>sample_0001.tif
+<small>Dice axón 0.898 · Dice mielina 0.829 · desacuerdo 11.9 % ·
+fibras Cellpose 55 / nnU-Net 62</small></h2>
+<div class="row">
+<a href="img/sample_0001_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0001_cp.jpg" alt="sample_0001.tif Cellpose"></a>
+<a href="img/sample_0001_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0001_nn.jpg" alt="sample_0001.tif nnU-Net"></a>
+<a href="img/sample_0001_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0001_common.jpg" alt="sample_0001.tif zona común"></a>
+<a href="img/sample_0001_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0001_diff.jpg" alt="sample_0001.tif zona no común"></a>
+</div></section>
+<section id="sample_0002"><h2>sample_0002.tif
+<small>Dice axón 0.912 · Dice mielina 0.851 · desacuerdo 6.1 % ·
+fibras Cellpose 34 / nnU-Net 36</small></h2>
+<div class="row">
+<a href="img/sample_0002_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0002_cp.jpg" alt="sample_0002.tif Cellpose"></a>
+<a href="img/sample_0002_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0002_nn.jpg" alt="sample_0002.tif nnU-Net"></a>
+<a href="img/sample_0002_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0002_common.jpg" alt="sample_0002.tif zona común"></a>
+<a href="img/sample_0002_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0002_diff.jpg" alt="sample_0002.tif zona no común"></a>
+</div></section>
+<section id="sample_0003"><h2>sample_0003.tif
+<small>Dice axón 0.951 · Dice mielina 0.863 · desacuerdo 5.1 % ·
+fibras Cellpose 34 / nnU-Net 43</small></h2>
+<div class="row">
+<a href="img/sample_0003_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0003_cp.jpg" alt="sample_0003.tif Cellpose"></a>
+<a href="img/sample_0003_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0003_nn.jpg" alt="sample_0003.tif nnU-Net"></a>
+<a href="img/sample_0003_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0003_common.jpg" alt="sample_0003.tif zona común"></a>
+<a href="img/sample_0003_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0003_diff.jpg" alt="sample_0003.tif zona no común"></a>
+</div></section>
+<section id="sample_0004"><h2>sample_0004.tif
+<small>Dice axón 0.937 · Dice mielina 0.884 · desacuerdo 6.5 % ·
+fibras Cellpose 36 / nnU-Net 45</small></h2>
+<div class="row">
+<a href="img/sample_0004_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0004_cp.jpg" alt="sample_0004.tif Cellpose"></a>
+<a href="img/sample_0004_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0004_nn.jpg" alt="sample_0004.tif nnU-Net"></a>
+<a href="img/sample_0004_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0004_common.jpg" alt="sample_0004.tif zona común"></a>
+<a href="img/sample_0004_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0004_diff.jpg" alt="sample_0004.tif zona no común"></a>
+</div></section>
+<section id="sample_0005"><h2>sample_0005.tif
+<small>Dice axón 0.951 · Dice mielina 0.895 · desacuerdo 6.8 % ·
+fibras Cellpose 67 / nnU-Net 74</small></h2>
+<div class="row">
+<a href="img/sample_0005_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0005_cp.jpg" alt="sample_0005.tif Cellpose"></a>
+<a href="img/sample_0005_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0005_nn.jpg" alt="sample_0005.tif nnU-Net"></a>
+<a href="img/sample_0005_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0005_common.jpg" alt="sample_0005.tif zona común"></a>
+<a href="img/sample_0005_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0005_diff.jpg" alt="sample_0005.tif zona no común"></a>
+</div></section>
+<section id="sample_0006"><h2>sample_0006.tif
+<small>Dice axón 0.761 · Dice mielina 0.750 · desacuerdo 15.0 % ·
+fibras Cellpose 37 / nnU-Net 59</small></h2>
+<div class="row">
+<a href="img/sample_0006_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0006_cp.jpg" alt="sample_0006.tif Cellpose"></a>
+<a href="img/sample_0006_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0006_nn.jpg" alt="sample_0006.tif nnU-Net"></a>
+<a href="img/sample_0006_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0006_common.jpg" alt="sample_0006.tif zona común"></a>
+<a href="img/sample_0006_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0006_diff.jpg" alt="sample_0006.tif zona no común"></a>
+</div></section>
+<section id="sample_0007"><h2>sample_0007.tif
+<small>Dice axón 0.934 · Dice mielina 0.885 · desacuerdo 6.3 % ·
+fibras Cellpose 44 / nnU-Net 56</small></h2>
+<div class="row">
+<a href="img/sample_0007_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0007_cp.jpg" alt="sample_0007.tif Cellpose"></a>
+<a href="img/sample_0007_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0007_nn.jpg" alt="sample_0007.tif nnU-Net"></a>
+<a href="img/sample_0007_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0007_common.jpg" alt="sample_0007.tif zona común"></a>
+<a href="img/sample_0007_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0007_diff.jpg" alt="sample_0007.tif zona no común"></a>
+</div></section>
+<section id="sample_0008"><h2>sample_0008.tif
+<small>Dice axón 0.892 · Dice mielina 0.834 · desacuerdo 11.0 % ·
+fibras Cellpose 43 / nnU-Net 55</small></h2>
+<div class="row">
+<a href="img/sample_0008_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0008_cp.jpg" alt="sample_0008.tif Cellpose"></a>
+<a href="img/sample_0008_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0008_nn.jpg" alt="sample_0008.tif nnU-Net"></a>
+<a href="img/sample_0008_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0008_common.jpg" alt="sample_0008.tif zona común"></a>
+<a href="img/sample_0008_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0008_diff.jpg" alt="sample_0008.tif zona no común"></a>
+</div></section>
+<section id="sample_0009"><h2>sample_0009.tif
+<small>Dice axón 0.965 · Dice mielina 0.907 · desacuerdo 4.3 % ·
+fibras Cellpose 60 / nnU-Net 63</small></h2>
+<div class="row">
+<a href="img/sample_0009_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0009_cp.jpg" alt="sample_0009.tif Cellpose"></a>
+<a href="img/sample_0009_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0009_nn.jpg" alt="sample_0009.tif nnU-Net"></a>
+<a href="img/sample_0009_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0009_common.jpg" alt="sample_0009.tif zona común"></a>
+<a href="img/sample_0009_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0009_diff.jpg" alt="sample_0009.tif zona no común"></a>
+</div></section>
+<section id="sample_0010"><h2>sample_0010.tif
+<small>Dice axón 0.945 · Dice mielina 0.903 · desacuerdo 4.4 % ·
+fibras Cellpose 39 / nnU-Net 45</small></h2>
+<div class="row">
+<a href="img/sample_0010_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0010_cp.jpg" alt="sample_0010.tif Cellpose"></a>
+<a href="img/sample_0010_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0010_nn.jpg" alt="sample_0010.tif nnU-Net"></a>
+<a href="img/sample_0010_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0010_common.jpg" alt="sample_0010.tif zona común"></a>
+<a href="img/sample_0010_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0010_diff.jpg" alt="sample_0010.tif zona no común"></a>
+</div></section>
+<section id="sample_0011"><h2>sample_0011.tif
+<small>Dice axón 0.825 · Dice mielina 0.754 · desacuerdo 16.3 % ·
+fibras Cellpose 45 / nnU-Net 57</small></h2>
+<div class="row">
+<a href="img/sample_0011_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0011_cp.jpg" alt="sample_0011.tif Cellpose"></a>
+<a href="img/sample_0011_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0011_nn.jpg" alt="sample_0011.tif nnU-Net"></a>
+<a href="img/sample_0011_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0011_common.jpg" alt="sample_0011.tif zona común"></a>
+<a href="img/sample_0011_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0011_diff.jpg" alt="sample_0011.tif zona no común"></a>
+</div></section>
+<section id="sample_0012"><h2>sample_0012.tif
+<small>Dice axón 0.805 · Dice mielina 0.808 · desacuerdo 12.7 % ·
+fibras Cellpose 32 / nnU-Net 41</small></h2>
+<div class="row">
+<a href="img/sample_0012_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0012_cp.jpg" alt="sample_0012.tif Cellpose"></a>
+<a href="img/sample_0012_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0012_nn.jpg" alt="sample_0012.tif nnU-Net"></a>
+<a href="img/sample_0012_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0012_common.jpg" alt="sample_0012.tif zona común"></a>
+<a href="img/sample_0012_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0012_diff.jpg" alt="sample_0012.tif zona no común"></a>
+</div></section>
+<section id="sample_0013"><h2>sample_0013.tif
+<small>Dice axón 0.737 · Dice mielina 0.768 · desacuerdo 12.4 % ·
+fibras Cellpose 24 / nnU-Net 32</small></h2>
+<div class="row">
+<a href="img/sample_0013_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0013_cp.jpg" alt="sample_0013.tif Cellpose"></a>
+<a href="img/sample_0013_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0013_nn.jpg" alt="sample_0013.tif nnU-Net"></a>
+<a href="img/sample_0013_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0013_common.jpg" alt="sample_0013.tif zona común"></a>
+<a href="img/sample_0013_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0013_diff.jpg" alt="sample_0013.tif zona no común"></a>
+</div></section>
+<section id="sample_0014"><h2>sample_0014.tif
+<small>Dice axón 0.779 · Dice mielina 0.719 · desacuerdo 17.2 % ·
+fibras Cellpose 40 / nnU-Net 63</small></h2>
+<div class="row">
+<a href="img/sample_0014_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0014_cp.jpg" alt="sample_0014.tif Cellpose"></a>
+<a href="img/sample_0014_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0014_nn.jpg" alt="sample_0014.tif nnU-Net"></a>
+<a href="img/sample_0014_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0014_common.jpg" alt="sample_0014.tif zona común"></a>
+<a href="img/sample_0014_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0014_diff.jpg" alt="sample_0014.tif zona no común"></a>
+</div></section>
+<section id="sample_0015"><h2>sample_0015.tif
+<small>Dice axón 0.786 · Dice mielina 0.764 · desacuerdo 15.5 % ·
+fibras Cellpose 38 / nnU-Net 55</small></h2>
+<div class="row">
+<a href="img/sample_0015_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0015_cp.jpg" alt="sample_0015.tif Cellpose"></a>
+<a href="img/sample_0015_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0015_nn.jpg" alt="sample_0015.tif nnU-Net"></a>
+<a href="img/sample_0015_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0015_common.jpg" alt="sample_0015.tif zona común"></a>
+<a href="img/sample_0015_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0015_diff.jpg" alt="sample_0015.tif zona no común"></a>
+</div></section>
+<section id="sample_0016"><h2>sample_0016.tif
+<small>Dice axón 0.941 · Dice mielina 0.859 · desacuerdo 7.5 % ·
+fibras Cellpose 55 / nnU-Net 64</small></h2>
+<div class="row">
+<a href="img/sample_0016_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0016_cp.jpg" alt="sample_0016.tif Cellpose"></a>
+<a href="img/sample_0016_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0016_nn.jpg" alt="sample_0016.tif nnU-Net"></a>
+<a href="img/sample_0016_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0016_common.jpg" alt="sample_0016.tif zona común"></a>
+<a href="img/sample_0016_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0016_diff.jpg" alt="sample_0016.tif zona no común"></a>
+</div></section>
+<section id="sample_0017"><h2>sample_0017.tif
+<small>Dice axón 0.696 · Dice mielina 0.708 · desacuerdo 26.2 % ·
+fibras Cellpose 40 / nnU-Net 53</small></h2>
+<div class="row">
+<a href="img/sample_0017_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0017_cp.jpg" alt="sample_0017.tif Cellpose"></a>
+<a href="img/sample_0017_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0017_nn.jpg" alt="sample_0017.tif nnU-Net"></a>
+<a href="img/sample_0017_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0017_common.jpg" alt="sample_0017.tif zona común"></a>
+<a href="img/sample_0017_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0017_diff.jpg" alt="sample_0017.tif zona no común"></a>
+</div></section>
+<section id="sample_0018"><h2>sample_0018.tif
+<small>Dice axón 0.823 · Dice mielina 0.785 · desacuerdo 5.5 % ·
+fibras Cellpose 18 / nnU-Net 24</small></h2>
+<div class="row">
+<a href="img/sample_0018_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0018_cp.jpg" alt="sample_0018.tif Cellpose"></a>
+<a href="img/sample_0018_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0018_nn.jpg" alt="sample_0018.tif nnU-Net"></a>
+<a href="img/sample_0018_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0018_common.jpg" alt="sample_0018.tif zona común"></a>
+<a href="img/sample_0018_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0018_diff.jpg" alt="sample_0018.tif zona no común"></a>
+</div></section>
+<section id="sample_0019"><h2>sample_0019.tif
+<small>Dice axón 0.934 · Dice mielina 0.875 · desacuerdo 5.8 % ·
+fibras Cellpose 26 / nnU-Net 37</small></h2>
+<div class="row">
+<a href="img/sample_0019_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0019_cp.jpg" alt="sample_0019.tif Cellpose"></a>
+<a href="img/sample_0019_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0019_nn.jpg" alt="sample_0019.tif nnU-Net"></a>
+<a href="img/sample_0019_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0019_common.jpg" alt="sample_0019.tif zona común"></a>
+<a href="img/sample_0019_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0019_diff.jpg" alt="sample_0019.tif zona no común"></a>
+</div></section>
+<section id="sample_0020"><h2>sample_0020.tif
+<small>Dice axón 0.931 · Dice mielina 0.892 · desacuerdo 5.0 % ·
+fibras Cellpose 32 / nnU-Net 33</small></h2>
+<div class="row">
+<a href="img/sample_0020_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0020_cp.jpg" alt="sample_0020.tif Cellpose"></a>
+<a href="img/sample_0020_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0020_nn.jpg" alt="sample_0020.tif nnU-Net"></a>
+<a href="img/sample_0020_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0020_common.jpg" alt="sample_0020.tif zona común"></a>
+<a href="img/sample_0020_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0020_diff.jpg" alt="sample_0020.tif zona no común"></a>
+</div></section>
+<section id="sample_0021"><h2>sample_0021.tif
+<small>Dice axón 0.897 · Dice mielina 0.833 · desacuerdo 10.8 % ·
+fibras Cellpose 43 / nnU-Net 57</small></h2>
+<div class="row">
+<a href="img/sample_0021_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0021_cp.jpg" alt="sample_0021.tif Cellpose"></a>
+<a href="img/sample_0021_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0021_nn.jpg" alt="sample_0021.tif nnU-Net"></a>
+<a href="img/sample_0021_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0021_common.jpg" alt="sample_0021.tif zona común"></a>
+<a href="img/sample_0021_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0021_diff.jpg" alt="sample_0021.tif zona no común"></a>
+</div></section>
+<section id="sample_0022"><h2>sample_0022.tif
+<small>Dice axón 0.885 · Dice mielina 0.855 · desacuerdo 9.0 % ·
+fibras Cellpose 48 / nnU-Net 64</small></h2>
+<div class="row">
+<a href="img/sample_0022_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0022_cp.jpg" alt="sample_0022.tif Cellpose"></a>
+<a href="img/sample_0022_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0022_nn.jpg" alt="sample_0022.tif nnU-Net"></a>
+<a href="img/sample_0022_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0022_common.jpg" alt="sample_0022.tif zona común"></a>
+<a href="img/sample_0022_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0022_diff.jpg" alt="sample_0022.tif zona no común"></a>
+</div></section>
+<section id="sample_0023"><h2>sample_0023.tif
+<small>Dice axón 0.933 · Dice mielina 0.888 · desacuerdo 7.0 % ·
+fibras Cellpose 54 / nnU-Net 72</small></h2>
+<div class="row">
+<a href="img/sample_0023_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0023_cp.jpg" alt="sample_0023.tif Cellpose"></a>
+<a href="img/sample_0023_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0023_nn.jpg" alt="sample_0023.tif nnU-Net"></a>
+<a href="img/sample_0023_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0023_common.jpg" alt="sample_0023.tif zona común"></a>
+<a href="img/sample_0023_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0023_diff.jpg" alt="sample_0023.tif zona no común"></a>
+</div></section>
+<section id="sample_0024"><h2>sample_0024.tif
+<small>Dice axón 0.914 · Dice mielina 0.866 · desacuerdo 6.0 % ·
+fibras Cellpose 35 / nnU-Net 37</small></h2>
+<div class="row">
+<a href="img/sample_0024_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0024_cp.jpg" alt="sample_0024.tif Cellpose"></a>
+<a href="img/sample_0024_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0024_nn.jpg" alt="sample_0024.tif nnU-Net"></a>
+<a href="img/sample_0024_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0024_common.jpg" alt="sample_0024.tif zona común"></a>
+<a href="img/sample_0024_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0024_diff.jpg" alt="sample_0024.tif zona no común"></a>
+</div></section>
+<section id="sample_0025"><h2>sample_0025.tif
+<small>Dice axón 0.879 · Dice mielina 0.803 · desacuerdo 9.1 % ·
+fibras Cellpose 36 / nnU-Net 46</small></h2>
+<div class="row">
+<a href="img/sample_0025_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0025_cp.jpg" alt="sample_0025.tif Cellpose"></a>
+<a href="img/sample_0025_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0025_nn.jpg" alt="sample_0025.tif nnU-Net"></a>
+<a href="img/sample_0025_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0025_common.jpg" alt="sample_0025.tif zona común"></a>
+<a href="img/sample_0025_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0025_diff.jpg" alt="sample_0025.tif zona no común"></a>
+</div></section>
+<section id="sample_0026"><h2>sample_0026.tif
+<small>Dice axón 0.804 · Dice mielina 0.791 · desacuerdo 9.0 % ·
+fibras Cellpose 24 / nnU-Net 36</small></h2>
+<div class="row">
+<a href="img/sample_0026_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0026_cp.jpg" alt="sample_0026.tif Cellpose"></a>
+<a href="img/sample_0026_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0026_nn.jpg" alt="sample_0026.tif nnU-Net"></a>
+<a href="img/sample_0026_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0026_common.jpg" alt="sample_0026.tif zona común"></a>
+<a href="img/sample_0026_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0026_diff.jpg" alt="sample_0026.tif zona no común"></a>
+</div></section>
+<section id="sample_0027"><h2>sample_0027.tif
+<small>Dice axón 0.920 · Dice mielina 0.851 · desacuerdo 9.1 % ·
+fibras Cellpose 39 / nnU-Net 50</small></h2>
+<div class="row">
+<a href="img/sample_0027_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0027_cp.jpg" alt="sample_0027.tif Cellpose"></a>
+<a href="img/sample_0027_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0027_nn.jpg" alt="sample_0027.tif nnU-Net"></a>
+<a href="img/sample_0027_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0027_common.jpg" alt="sample_0027.tif zona común"></a>
+<a href="img/sample_0027_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0027_diff.jpg" alt="sample_0027.tif zona no común"></a>
+</div></section>
+<section id="sample_0028"><h2>sample_0028.tif
+<small>Dice axón 0.898 · Dice mielina 0.829 · desacuerdo 8.4 % ·
+fibras Cellpose 38 / nnU-Net 54</small></h2>
+<div class="row">
+<a href="img/sample_0028_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0028_cp.jpg" alt="sample_0028.tif Cellpose"></a>
+<a href="img/sample_0028_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0028_nn.jpg" alt="sample_0028.tif nnU-Net"></a>
+<a href="img/sample_0028_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0028_common.jpg" alt="sample_0028.tif zona común"></a>
+<a href="img/sample_0028_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0028_diff.jpg" alt="sample_0028.tif zona no común"></a>
+</div></section>
+<section id="sample_0029"><h2>sample_0029.tif
+<small>Dice axón 0.925 · Dice mielina 0.848 · desacuerdo 6.5 % ·
+fibras Cellpose 34 / nnU-Net 48</small></h2>
+<div class="row">
+<a href="img/sample_0029_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0029_cp.jpg" alt="sample_0029.tif Cellpose"></a>
+<a href="img/sample_0029_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0029_nn.jpg" alt="sample_0029.tif nnU-Net"></a>
+<a href="img/sample_0029_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0029_common.jpg" alt="sample_0029.tif zona común"></a>
+<a href="img/sample_0029_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0029_diff.jpg" alt="sample_0029.tif zona no común"></a>
+</div></section>
+<section id="sample_0030"><h2>sample_0030.tif
+<small>Dice axón 0.979 · Dice mielina 0.928 · desacuerdo 3.0 % ·
+fibras Cellpose 45 / nnU-Net 48</small></h2>
+<div class="row">
+<a href="img/sample_0030_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0030_cp.jpg" alt="sample_0030.tif Cellpose"></a>
+<a href="img/sample_0030_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0030_nn.jpg" alt="sample_0030.tif nnU-Net"></a>
+<a href="img/sample_0030_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0030_common.jpg" alt="sample_0030.tif zona común"></a>
+<a href="img/sample_0030_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0030_diff.jpg" alt="sample_0030.tif zona no común"></a>
+</div></section>
+<section id="sample_0031"><h2>sample_0031.tif
+<small>Dice axón 0.947 · Dice mielina 0.899 · desacuerdo 5.2 % ·
+fibras Cellpose 45 / nnU-Net 49</small></h2>
+<div class="row">
+<a href="img/sample_0031_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0031_cp.jpg" alt="sample_0031.tif Cellpose"></a>
+<a href="img/sample_0031_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0031_nn.jpg" alt="sample_0031.tif nnU-Net"></a>
+<a href="img/sample_0031_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0031_common.jpg" alt="sample_0031.tif zona común"></a>
+<a href="img/sample_0031_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0031_diff.jpg" alt="sample_0031.tif zona no común"></a>
+</div></section>
+<section id="sample_0032"><h2>sample_0032.tif
+<small>Dice axón 0.981 · Dice mielina 0.927 · desacuerdo 2.3 % ·
+fibras Cellpose 37 / nnU-Net 41</small></h2>
+<div class="row">
+<a href="img/sample_0032_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0032_cp.jpg" alt="sample_0032.tif Cellpose"></a>
+<a href="img/sample_0032_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0032_nn.jpg" alt="sample_0032.tif nnU-Net"></a>
+<a href="img/sample_0032_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0032_common.jpg" alt="sample_0032.tif zona común"></a>
+<a href="img/sample_0032_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0032_diff.jpg" alt="sample_0032.tif zona no común"></a>
+</div></section>
+<section id="sample_0033"><h2>sample_0033.tif
+<small>Dice axón 0.932 · Dice mielina 0.895 · desacuerdo 6.4 % ·
+fibras Cellpose 58 / nnU-Net 59</small></h2>
+<div class="row">
+<a href="img/sample_0033_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0033_cp.jpg" alt="sample_0033.tif Cellpose"></a>
+<a href="img/sample_0033_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0033_nn.jpg" alt="sample_0033.tif nnU-Net"></a>
+<a href="img/sample_0033_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0033_common.jpg" alt="sample_0033.tif zona común"></a>
+<a href="img/sample_0033_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0033_diff.jpg" alt="sample_0033.tif zona no común"></a>
+</div></section>
+<section id="sample_0034"><h2>sample_0034.tif
+<small>Dice axón 0.975 · Dice mielina 0.933 · desacuerdo 2.3 % ·
+fibras Cellpose 52 / nnU-Net 61</small></h2>
+<div class="row">
+<a href="img/sample_0034_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0034_cp.jpg" alt="sample_0034.tif Cellpose"></a>
+<a href="img/sample_0034_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0034_nn.jpg" alt="sample_0034.tif nnU-Net"></a>
+<a href="img/sample_0034_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0034_common.jpg" alt="sample_0034.tif zona común"></a>
+<a href="img/sample_0034_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0034_diff.jpg" alt="sample_0034.tif zona no común"></a>
+</div></section>
+<section id="sample_0035"><h2>sample_0035.tif
+<small>Dice axón 0.838 · Dice mielina 0.801 · desacuerdo 13.9 % ·
+fibras Cellpose 53 / nnU-Net 58</small></h2>
+<div class="row">
+<a href="img/sample_0035_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0035_cp.jpg" alt="sample_0035.tif Cellpose"></a>
+<a href="img/sample_0035_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0035_nn.jpg" alt="sample_0035.tif nnU-Net"></a>
+<a href="img/sample_0035_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0035_common.jpg" alt="sample_0035.tif zona común"></a>
+<a href="img/sample_0035_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0035_diff.jpg" alt="sample_0035.tif zona no común"></a>
+</div></section>
+<section id="sample_0036"><h2>sample_0036.tif
+<small>Dice axón 0.755 · Dice mielina 0.596 · desacuerdo 21.7 % ·
+fibras Cellpose 26 / nnU-Net 33</small></h2>
+<div class="row">
+<a href="img/sample_0036_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0036_cp.jpg" alt="sample_0036.tif Cellpose"></a>
+<a href="img/sample_0036_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0036_nn.jpg" alt="sample_0036.tif nnU-Net"></a>
+<a href="img/sample_0036_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0036_common.jpg" alt="sample_0036.tif zona común"></a>
+<a href="img/sample_0036_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0036_diff.jpg" alt="sample_0036.tif zona no común"></a>
+</div></section>
+<section id="sample_0037"><h2>sample_0037.tif
+<small>Dice axón 0.928 · Dice mielina 0.886 · desacuerdo 6.6 % ·
+fibras Cellpose 55 / nnU-Net 68</small></h2>
+<div class="row">
+<a href="img/sample_0037_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0037_cp.jpg" alt="sample_0037.tif Cellpose"></a>
+<a href="img/sample_0037_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0037_nn.jpg" alt="sample_0037.tif nnU-Net"></a>
+<a href="img/sample_0037_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0037_common.jpg" alt="sample_0037.tif zona común"></a>
+<a href="img/sample_0037_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0037_diff.jpg" alt="sample_0037.tif zona no común"></a>
+</div></section>
+<section id="sample_0038"><h2>sample_0038.tif
+<small>Dice axón 0.916 · Dice mielina 0.889 · desacuerdo 6.0 % ·
+fibras Cellpose 33 / nnU-Net 35</small></h2>
+<div class="row">
+<a href="img/sample_0038_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0038_cp.jpg" alt="sample_0038.tif Cellpose"></a>
+<a href="img/sample_0038_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0038_nn.jpg" alt="sample_0038.tif nnU-Net"></a>
+<a href="img/sample_0038_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0038_common.jpg" alt="sample_0038.tif zona común"></a>
+<a href="img/sample_0038_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0038_diff.jpg" alt="sample_0038.tif zona no común"></a>
+</div></section>
+<section id="sample_0039"><h2>sample_0039.tif
+<small>Dice axón 0.905 · Dice mielina 0.862 · desacuerdo 8.4 % ·
+fibras Cellpose 44 / nnU-Net 52</small></h2>
+<div class="row">
+<a href="img/sample_0039_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0039_cp.jpg" alt="sample_0039.tif Cellpose"></a>
+<a href="img/sample_0039_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0039_nn.jpg" alt="sample_0039.tif nnU-Net"></a>
+<a href="img/sample_0039_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0039_common.jpg" alt="sample_0039.tif zona común"></a>
+<a href="img/sample_0039_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0039_diff.jpg" alt="sample_0039.tif zona no común"></a>
+</div></section>
+<section id="sample_0040"><h2>sample_0040.tif
+<small>Dice axón 0.948 · Dice mielina 0.911 · desacuerdo 4.0 % ·
+fibras Cellpose 43 / nnU-Net 47</small></h2>
+<div class="row">
+<a href="img/sample_0040_cp.jpg" target="_blank"><img loading="lazy" src="img/sample_0040_cp.jpg" alt="sample_0040.tif Cellpose"></a>
+<a href="img/sample_0040_nn.jpg" target="_blank"><img loading="lazy" src="img/sample_0040_nn.jpg" alt="sample_0040.tif nnU-Net"></a>
+<a href="img/sample_0040_common.jpg" target="_blank"><img loading="lazy" src="img/sample_0040_common.jpg" alt="sample_0040.tif zona común"></a>
+<a href="img/sample_0040_diff.jpg" target="_blank"><img loading="lazy" src="img/sample_0040_diff.jpg" alt="sample_0040.tif zona no común"></a>
+</div></section>
+</body></html>

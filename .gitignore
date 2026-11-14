@@ -58,3 +58,4 @@ eval_cellpose/
 
 # ---- test predictions (Cellpose, submission) ----
 !predictions_cellpose/*.tif
+
