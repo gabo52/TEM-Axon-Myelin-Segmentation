@@ -102,4 +102,3 @@ python analysis/metrics.py <predictions dir> <ground-truth dir>
 python otros/evaluar_5folds.py cv_results.json
 ```
 
-More: [`METHOD.md`](METHOD.md) (full method), `figures/GPEM15_arquitectura.pptx` (editable diagram).
