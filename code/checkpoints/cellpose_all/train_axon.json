@@ -1,0 +1,116 @@
+{
+  "target": "axon",
+  "args": {
+    "target": "axon",
+    "images": "/home/stefano/Desktop/Axon/data/train_samples",
+    "labels": "/home/stefano/Desktop/Axon/data/train_instance_labels",
+    "out": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_all",
+    "pretrained": "cpsam",
+    "scale": 0.25,
+    "epochs": 200,
+    "lr": 1e-05,
+    "batch_size": 4,
+    "freeze": 12,
+    "val_frac": 0.15,
+    "seed": 0,
+    "split": null,
+    "all": true,
+    "patience": 60,
+    "check_every": 10,
+    "check_start": 40,
+    "stop_epoch": 100,
+    "nimg_per_epoch": 213,
+    "kfold": 0,
+    "fold": 0,
+    "wandb": true,
+    "wandb_group": "cellpose-kfold"
+  },
+  "versions": {
+    "cellpose": "4.2.1.1",
+    "torch": "2.14.1+cu130"
+  },
+  "n_train": 266,
+  "n_val": 0,
+  "model": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_all/models/cpsam_tem_axon",
+  "best_epoch": null,
+  "best_val_dice": null,
+  "final_val_dice": null,
+  "stopped_early": true,
+  "last_epoch": 100,
+  "history": [
+    [
+      0,
+      3.7182,
+      0.0,
+      null
+    ],
+    [
+      5,
+      1.3873,
+      0.0,
+      null
+    ],
+    [
+      10,
+      0.6731,
+      0.0,
+      null
+    ],
+    [
+      20,
+      0.5989,
+      0.0,
+      null
+    ],
+    [
+      30,
+      0.5496,
+      0.0,
+      null
+    ],
+    [
+      40,
+      0.5269,
+      0.0,
+      null
+    ],
+    [
+      50,
+      0.5168,
+      0.0,
+      null
+    ],
+    [
+      60,
+      0.5176,
+      0.0,
+      null
+    ],
+    [
+      70,
+      0.4975,
+      0.0,
+      null
+    ],
+    [
+      80,
+      0.4788,
+      0.0,
+      null
+    ],
+    [
+      90,
+      0.4877,
+      0.0,
+      null
+    ],
+    [
+      100,
+      0.4794,
+      0.0,
+      null
+    ]
+  ],
+  "train_loss": [],
+  "val_loss": []
+}

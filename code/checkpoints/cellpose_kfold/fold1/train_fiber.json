@@ -1,0 +1,122 @@
+{
+  "target": "fiber",
+  "args": {
+    "target": "fiber",
+    "images": "/home/stefano/Desktop/Axon/data/train_samples",
+    "labels": "/home/stefano/Desktop/Axon/data/train_instance_labels",
+    "out": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_kfold/fold1",
+    "pretrained": "cpsam",
+    "scale": 0.25,
+    "epochs": 200,
+    "lr": 1e-05,
+    "batch_size": 4,
+    "freeze": 12,
+    "val_frac": 0.15,
+    "seed": 0,
+    "split": null,
+    "all": false,
+    "patience": 60,
+    "check_every": 10,
+    "check_start": 40,
+    "stop_epoch": null,
+    "nimg_per_epoch": null,
+    "kfold": 5,
+    "fold": 1,
+    "wandb": true,
+    "wandb_group": "cellpose-kfold"
+  },
+  "versions": {
+    "cellpose": "4.2.1.1",
+    "torch": "2.14.1+cu130"
+  },
+  "n_train": 213,
+  "n_val": 53,
+  "model": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_kfold/fold1/models/cpsam_tem_fiber",
+  "best_epoch": 50,
+  "best_val_dice": 0.9003603074138368,
+  "final_val_dice": null,
+  "stopped_early": true,
+  "last_epoch": 110,
+  "history": [
+    [
+      0,
+      2.913,
+      2.9085,
+      null
+    ],
+    [
+      5,
+      1.5138,
+      1.1278,
+      null
+    ],
+    [
+      10,
+      1.0034,
+      1.0461,
+      null
+    ],
+    [
+      20,
+      0.8973,
+      0.9094,
+      null
+    ],
+    [
+      30,
+      0.8296,
+      0.884,
+      null
+    ],
+    [
+      40,
+      0.7976,
+      0.8454,
+      0.8962573108906282
+    ],
+    [
+      50,
+      0.7967,
+      0.8379,
+      0.9003603074138368
+    ],
+    [
+      60,
+      0.7945,
+      0.8259,
+      0.8994529960761491
+    ],
+    [
+      70,
+      0.7386,
+      0.8743,
+      0.8725850044983189
+    ],
+    [
+      80,
+      0.7497,
+      0.8719,
+      0.8883878311957556
+    ],
+    [
+      90,
+      0.7501,
+      0.8763,
+      0.8988999103297335
+    ],
+    [
+      100,
+      0.7351,
+      0.8619,
+      0.8932782461815895
+    ],
+    [
+      110,
+      0.7215,
+      0.8366,
+      0.8807601120526137
+    ]
+  ],
+  "train_loss": [],
+  "val_loss": []
+}

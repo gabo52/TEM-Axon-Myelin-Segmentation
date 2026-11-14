@@ -1,0 +1,47 @@
+{
+  "cellpose_default": {
+    "dice_axon": 0.8733857402263534,
+    "dice_myelin": 0.8364759085374611,
+    "hd95_axon": 602.2548370333161,
+    "hd95_myelin": 523.2228401754743,
+    "dice_mean": 0.8549308243819073,
+    "hd95_mean": 562.7388386043951,
+    "g_ratio_mae": 0.01800582060607974,
+    "n_images": 266,
+    "n_hd95_nan": 0,
+    "n_folds": 5,
+    "dice_mean_fold_std": 0.020729807944735962,
+    "hd95_mean_fold_std": 86.43368586586732,
+    "g_ratio_mae_fold_std": 0.0023761844690130952
+  },
+  "cp-1_multiscale": {
+    "dice_axon": 0.8847794544546711,
+    "dice_myelin": 0.8400200326294996,
+    "hd95_axon": 532.701541346977,
+    "hd95_myelin": 527.7786363184489,
+    "dice_mean": 0.8623997435420854,
+    "hd95_mean": 530.2400888327129,
+    "g_ratio_mae": 0.0159827675965449,
+    "n_images": 266,
+    "n_hd95_nan": 0,
+    "n_folds": 5,
+    "dice_mean_fold_std": 0.013940514105417672,
+    "hd95_mean_fold_std": 80.47064149503392,
+    "g_ratio_mae_fold_std": 0.002040260343758309
+  },
+  "cp-2_multiscale": {
+    "dice_axon": 0.8762069799037786,
+    "dice_myelin": 0.8161890566200686,
+    "hd95_axon": 528.2038139381021,
+    "hd95_myelin": 571.27534192422,
+    "dice_mean": 0.8461980182619235,
+    "hd95_mean": 549.7395779311611,
+    "g_ratio_mae": 0.017907788999181374,
+    "n_images": 266,
+    "n_hd95_nan": 0,
+    "n_folds": 5,
+    "dice_mean_fold_std": 0.013858330227699995,
+    "hd95_mean_fold_std": 71.5210994028934,
+    "g_ratio_mae_fold_std": 0.0022261340722727636
+  }
+}

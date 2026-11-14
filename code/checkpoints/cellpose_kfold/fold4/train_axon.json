@@ -1,0 +1,134 @@
+{
+  "target": "axon",
+  "args": {
+    "target": "axon",
+    "images": "/home/stefano/Desktop/Axon/data/train_samples",
+    "labels": "/home/stefano/Desktop/Axon/data/train_instance_labels",
+    "out": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_kfold/fold4",
+    "pretrained": "cpsam",
+    "scale": 0.25,
+    "epochs": 200,
+    "lr": 1e-05,
+    "batch_size": 4,
+    "freeze": 12,
+    "val_frac": 0.15,
+    "seed": 0,
+    "split": null,
+    "all": false,
+    "patience": 60,
+    "check_every": 10,
+    "check_start": 40,
+    "stop_epoch": null,
+    "nimg_per_epoch": null,
+    "kfold": 5,
+    "fold": 4,
+    "wandb": true,
+    "wandb_group": "cellpose-kfold"
+  },
+  "versions": {
+    "cellpose": "4.2.1.1",
+    "torch": "2.14.1+cu130"
+  },
+  "n_train": 213,
+  "n_val": 53,
+  "model": "/home/stefano/Desktop/Axon/code/checkpoints/cellpose_kfold/fold4/models/cpsam_tem_axon",
+  "best_epoch": 70,
+  "best_val_dice": 0.8837078626858353,
+  "final_val_dice": null,
+  "stopped_early": true,
+  "last_epoch": 130,
+  "history": [
+    [
+      0,
+      3.7739,
+      4.1301,
+      null
+    ],
+    [
+      5,
+      1.3876,
+      0.6754,
+      null
+    ],
+    [
+      10,
+      0.6798,
+      0.5814,
+      null
+    ],
+    [
+      20,
+      0.5914,
+      0.5082,
+      null
+    ],
+    [
+      30,
+      0.5467,
+      0.5463,
+      null
+    ],
+    [
+      40,
+      0.5145,
+      0.472,
+      0.8513227623346029
+    ],
+    [
+      50,
+      0.5228,
+      0.4975,
+      0.8691360235595194
+    ],
+    [
+      60,
+      0.5021,
+      0.4631,
+      0.8595479788115207
+    ],
+    [
+      70,
+      0.4786,
+      0.4588,
+      0.8837078626858353
+    ],
+    [
+      80,
+      0.5009,
+      0.448,
+      0.8750624583358168
+    ],
+    [
+      90,
+      0.4715,
+      0.4899,
+      0.8288368998820255
+    ],
+    [
+      100,
+      0.4695,
+      0.4467,
+      0.8586569121022737
+    ],
+    [
+      110,
+      0.4646,
+      0.458,
+      0.8609370135067066
+    ],
+    [
+      120,
+      0.4621,
+      0.4714,
+      0.8581711702715598
+    ],
+    [
+      130,
+      0.4551,
+      0.4698,
+      0.852790840738138
+    ]
+  ],
+  "train_loss": [],
+  "val_loss": []
+}
