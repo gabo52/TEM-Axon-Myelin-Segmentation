@@ -55,3 +55,6 @@ wandb/
 
 # ---- salidas locales de Cellpose ----
 eval_cellpose/
+
+# ---- test predictions (Cellpose, submission) ----
+!predictions_cellpose/*.tif
