@@ -108,7 +108,7 @@ a {{ color:inherit; }}
 <header>
 <h1>Test SIPAIM 2026 — Cellpose vs nnU-Net</h1>
 <p>{n} imágenes de test. Cellpose: <code>code/checkpoints/cellpose_all</code> (cellprob −1 + multiescala).
-nnU-Net: <code>predictions/</code> de la rama <code>danitza2</code> (GPEM15).</p>
+nnU-Net: <code>predictions_nnunet/</code> (GPEM15, ensemble de 5 folds, entrada a media resolución).</p>
 <p>Concordancia media entre ambos: Dice axón {da:.3f}, Dice mielina {dm:.3f}.
 Fibras totales: Cellpose {fc}, nnU-Net {fn}. Es acuerdo entre modelos, no precisión (el test no tiene ground truth).</p>
 <div class="legend">

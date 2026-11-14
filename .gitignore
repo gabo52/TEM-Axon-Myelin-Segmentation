@@ -59,3 +59,9 @@ eval_cellpose/
 # ---- test predictions (Cellpose, submission) ----
 !predictions_cellpose/*.tif
 
+
+# ---- nnU-Net GPEM15 weights (Google Drive, ~GB) ----
+nnunet_weights/
+
+# ---- staging of the challenge zip ----
+submission/
