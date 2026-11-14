@@ -1,0 +1,15 @@
+# Core (tested with Python 3.11)
+nnunetv2==2.8.1
+torch==2.3.0
+numpy==1.26.4
+scipy==1.13.0
+scikit-image==0.20.0
+scikit-learn==1.4.1.post1
+tifffile==2023.4.12
+
+# Pulled in by nnU-Net
+batchgenerators==0.25.6
+batchgeneratorsv2==0.3.7
+acvl-utils==0.2.7
+dynamic-network-architectures==0.4.4
+blosc2==4.14.1
